@@ -36,15 +36,42 @@
 // present in FtpClient.c
 extern char* itoa(char* in, int val);
 
-// these offsets depend on the layout of both ioman & iomanX ... ps2netfs does
-// something similar, so if it breaks, we all go down.
-#define DEVINFO_IOMAN_OFFSET 0x0c
-#define DEVINFO_IOMANX_OFFSET 0
-
 #define DEVINFOARRAY(d,ofs) ((iop_device_t **)((d)->text_start + (d)->text_size + (d)->data_size + (ofs)))
 
 // buffer used for concating filenames internally
 static char buffer[512];
+
+static int num_io_devs = 0;
+
+iop_device_t **GetDevList(void)
+{
+	smod_mod_info_t *mod;
+	iop_device_t **devs = NULL;
+
+    if((mod = FileSystem_GetModule(IOPMGR_IOMANX_IDENT)) != NULL)
+    {
+		num_io_devs = FS_IOMANX_DEVICES;
+
+        // is iomanX the newer version with "GetDeviceList()"?
+    	if(((u32 *) mod->text_start)[1] == 0x03E00008)
+    	{
+    		// call iomanX GetDeviceList
+    		devs = ((iop_device_t **(*)(void)) (mod->text_start))();
+    	}
+    	else
+    	{
+    	    // if not, use the old method of getting the list.
+	    	devs = DEVINFOARRAY(mod, 0x00);
+	    }
+    }
+    else if((mod = FileSystem_GetModule(IOPMGR_IOMAN_IDENT)) != NULL)
+    {
+		num_io_devs = FS_IOMAN_DEVICES;
+    	devs = DEVINFOARRAY(mod, 0x10);
+    }
+
+    return(devs);
+}
 
 void FileSystem_Create( FSContext* pContext )
 {
@@ -337,7 +364,7 @@ int FileSystem_ReadDir( FSContext* pContext, FSFileInfo* pInfo )
 					pInfo->m_iProtection = ent.stat.mode & (FIO_SO_IROTH|FIO_SO_IWOTH|FIO_SO_IXOTH);
 					pInfo->m_iProtection = pInfo->m_iProtection|(pInfo->m_iProtection << 3)|(pInfo->m_iProtection << 6);
 
-					return 0;					
+					return 0;
 				}
 			}
 			else
@@ -362,7 +389,7 @@ int FileSystem_ReadDir( FSContext* pContext, FSFileInfo* pInfo )
 
 					pInfo->m_iProtection = ent.stat.mode & (FIO_S_IRWXU|FIO_S_IRWXG|FIO_S_IRWXO);
 
-					return 0;					
+					return 0;
 				}
 			}
 		}
@@ -406,27 +433,12 @@ int FileSystem_ReadDir( FSContext* pContext, FSFileInfo* pInfo )
 			{
 				// evaluating devices
 
-				smod_mod_info_t* pkModule;
-				iop_device_t** ppkDevices;
-				int num_devices;
-				int dev_offset;
-
-				// get module
-
-				num_devices = FS_IOMANX_DEVICES;
-				dev_offset = DEVINFO_IOMANX_OFFSET;
-				if( NULL == (pkModule = FileSystem_GetModule(IOPMGR_IOMANX_IDENT)) )
-				{
-					dev_offset = DEVINFO_IOMAN_OFFSET;
-					num_devices = FS_IOMAN_DEVICES;
-					if( NULL == (pkModule = FileSystem_GetModule(IOPMGR_IOMAN_IDENT)) )
-						return -1;
-				}
+				iop_device_t **ppkDevices = GetDevList();
+				if(ppkDevices == NULL) { return(-1); }
 
 				// scan filesystem devices
 
-				ppkDevices = DEVINFOARRAY(pkModule,dev_offset);
-				while( pContext->m_kFile.unit < num_devices )
+				while( pContext->m_kFile.unit < num_io_devs )
 				{
 					int unit = pContext->m_kFile.unit;
 					pContext->m_kFile.unit++;
@@ -443,7 +455,7 @@ int FileSystem_ReadDir( FSContext* pContext, FSFileInfo* pInfo )
 
 					return 0;
 				}
-			}				
+			}
 		}
 		break;
 
@@ -794,27 +806,10 @@ smod_mod_info_t* FileSystem_GetModule( const char* pDevice )
 
 iop_device_t* FileSystem_ScanDevice( const char* pDevice, int iNumDevices, const char* pPath )
 {
-	smod_mod_info_t* pkModule;
-  iop_device_t **ppkDevices;
+    iop_device_t **ppkDevices;
 	int i;
-	int offset;
 
-	// get module
-
-	if( NULL == (pkModule = FileSystem_GetModule(pDevice)) )
-		return NULL;
-
-	// determine offset
-	
-	if( !strcmp(IOPMGR_IOMANX_IDENT,pkModule->name) )
-		offset = DEVINFO_IOMANX_OFFSET;
-	else if( !strcmp(IOPMGR_IOMAN_IDENT,pkModule->name) )
-		offset = DEVINFO_IOMAN_OFFSET;
-	else
-		return NULL; // unknown device, we cannot determine the offset here...
-
-	// get device info array
-	ppkDevices = DEVINFOARRAY(pkModule,offset);
+    if((ppkDevices = GetDevList()) == NULL) { return(NULL); }
 
 	// scan array
 	for( i = 0; i < iNumDevices; i++ )

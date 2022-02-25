@@ -67,8 +67,8 @@ enum {
     FTPCMD_CDUP = FCOMMAND('c', 'd', 'u', 'p'),
     FTPCMD_PASV = FCOMMAND('p', 'a', 's', 'v'),
     FTPCMD_APPE = FCOMMAND('a', 'p', 'p', 'e'),
-    FTPCMD_RNFR = FCOMMAND('r', 'n', 'f', 'r'),  // implement
-    FTPCMD_RNTO = FCOMMAND('r', 'n', 't', 'o'),  // implement
+    FTPCMD_RNFR = FCOMMAND('r', 'n', 'f', 'r'),
+    FTPCMD_RNTO = FCOMMAND('r', 'n', 't', 'o'),
     FTPCMD_ABOR = FCOMMAND('a', 'b', 'o', 'r'),  // implement
     FTPCMD_DELE = FCOMMAND('d', 'e', 'l', 'e'),
     FTPCMD_RMD = FCOMMAND(0, 'r', 'm', 'd'),
@@ -154,6 +154,8 @@ void FtpClient_OnCmdCwd(FtpClient *pClient, const char *pPath);
 void FtpClient_OnCmdDele(FtpClient *pClient, const char *pFile);
 void FtpClient_OnCmdMkd(FtpClient *pClient, const char *pDir);
 void FtpClient_OnCmdRmd(FtpClient *pClient, const char *pDir);
+void FtpClient_OnCmdRnfr(FtpClient *pClient, const char *name);
+void FtpClient_OnCmdRnto(FtpClient *pClient, const char *newName);
 void FtpClient_OnCmdSite(FtpClient *pClient, const char *pCmd);
 void FtpClient_OnCmdMode(FtpClient *pClient, const char *pMode);
 void FtpClient_OnCmdStru(FtpClient *pClient, const char *pStructure);

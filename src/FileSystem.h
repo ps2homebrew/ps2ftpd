@@ -63,14 +63,27 @@ typedef struct FSFileInfo
         int m_iDay;
         int m_iHour;
         int m_iMinute;
+        int m_iSecond;
     } m_TS;  // timestamp
 
     FileType m_eType;
     int m_iProtection;  // 3 bits protection per section: UrwxGrwxOrwx
 
-    int m_iSize;
+    u64 m_iSize;
     char m_Name[256];
+    int m_iDaysBetween;
 } FSFileInfo;
+
+typedef struct
+{
+    u8 unused;
+    u8 sec;
+    u8 min;
+    u8 hour;
+    u8 day;
+    u8 month;
+    u16 year;
+} ps2time;
 
 //! Initialize context for use
 void FileSystem_Create(FSContext *pContext);
@@ -114,12 +127,15 @@ int FileSystem_GetFileSize(FSContext *pContext, const char *pFile);
 //! Delete directory
 int FileSystem_DeleteDir(FSContext *pContext, const char *pDir);
 
+//! Rename file or directory
+int FileSystem_Rename(FSContext *pContext, const char *oldName, const char *newName);
+
 #ifndef LINUX
 //! Determine device needed for accessing device & fill context with info
 const char *FileSystem_ClassifyPath(FSContext *pContext, const char *pPath);
 
 //! Get a pointer to device handler
-smod_mod_info_t *FileSystem_GetModule(const char *pDevice);
+ModuleInfo_t *FileSystem_GetModule(const char *pDevice);
 
 //! Scan devices & return ops structure if found
 iop_device_t *FileSystem_ScanDevice(const char *pDevice, int iNumDevices, const char *pPath);
@@ -132,6 +148,12 @@ int FileSystem_UnmountDevice(FSContext *pContext, const char *mount_point);
 
 //! Sync device
 int FileSystem_SyncDevice(FSContext *pContext, const char *devname);
+
+//! Get current ps2 system time
+int getPs2Time(ps2time *tm);
+
+//! Calculate the difference in days between ps2 system time and file or directory time
+int getDaysBetween(int month1, int day1, int year1, int month2, int day2, int year2);
 #endif
 
 #endif

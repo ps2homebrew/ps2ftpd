@@ -198,7 +198,13 @@ void FtpClient_OnCmdSyst(FtpClient *pClient)
 
     // TODO: is this proper?
 
+    /* UNIX-style LIST format */
     FtpClient_Send(pClient, 215, "UNIX Type: L8");
+
+    /* MS-style LIST format: To use uncomment this format after commenting out UNIX-style LIST format
+        and making changes in FtpClient.c's FtpClient_OnDataWrite
+    FtpClient_Send( pClient, 215, "Windows_NT version 5.0" );
+    */
 }
 
 void FtpClient_OnCmdList(struct FtpClient *pClient, const char *pPath, int iNamesOnly)
@@ -344,6 +350,31 @@ void FtpClient_OnCmdMkd(FtpClient *pClient, const char *pDir)
 void FtpClient_OnCmdRmd(FtpClient *pClient, const char *pDir)
 {
     if (FileSystem_DeleteDir(&pClient->m_kContext, pDir) < 0)
+        FtpClient_Send(pClient, 550, pClient->m_pMessages[FTPMSG_COMMAND_FAILED]);
+    else
+        FtpClient_Send(pClient, 250, pClient->m_pMessages[FTPMSG_COMMAND_SUCCESSFUL]);
+}
+
+void FtpClient_OnCmdRnfr(FtpClient *pClient, const char *name)
+{
+    int iMarker = pClient->m_iRestartMarker;
+    pClient->m_iRestartMarker = 0;
+
+    // check if file/dir exists that is to be renamed
+    if ((FileSystem_OpenFile(&pClient->m_kContext, name, FM_READ, iMarker)) && (FileSystem_OpenDir(&pClient->m_kContext, name)) < 0)
+        FtpClient_Send(pClient, 550, pClient->m_pMessages[FTPMSG_COMMAND_FAILED]);
+    else {
+        // get just the name not the path
+        FileSystem_BuildPath(buffer, pClient->m_kContext.m_Path, name);
+        if (NULL != (name = FileSystem_ClassifyPath(&pClient->m_kContext, buffer)))
+            strcpy(buffer, name);
+        FtpClient_Send(pClient, 350, pClient->m_pMessages[FTPMSG_COMMAND_SUCCESSFUL]);
+    }
+}
+
+void FtpClient_OnCmdRnto(FtpClient *pClient, const char *newName)
+{
+    if (FileSystem_Rename(&pClient->m_kContext, buffer, newName) < 0)
         FtpClient_Send(pClient, 550, pClient->m_pMessages[FTPMSG_COMMAND_FAILED]);
     else
         FtpClient_Send(pClient, 250, pClient->m_pMessages[FTPMSG_COMMAND_SUCCESSFUL]);

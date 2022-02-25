@@ -65,7 +65,7 @@ void FtpServer_Destroy(FtpServer *pServer)
 
 int FtpServer_Start(FtpServer *pServer)
 {
-    int opt;
+    //    int opt;
     int s;
     struct sockaddr_in sa;
 
@@ -80,12 +80,15 @@ int FtpServer_Start(FtpServer *pServer)
 
     // make a few settings
 
+    // SP193: Is this necessary? If it is, a custom build of LWIP is required (SO_REUSE is disabled by default at compile-time)
+#if 0
     opt = 1;
     if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
         disconnect(s);
         printf("ps2ftpd: Could not change socket options.\n");
         return -1;
     }
+#endif
 
     // try to bind socket
 
@@ -203,19 +206,18 @@ int FtpServer_HandleEvents(FtpServer *pServer)
 
         sl = sizeof(sa);
         if ((s = accept(pServer->m_iSocket, (struct sockaddr *)&sa, &sl)) >= 0) {
-            FtpClient *pClient;
+#ifdef DEBUG
             unsigned int addr;
             unsigned short port;
 
             addr = htonl(sa.sin_addr.s_addr);
             port = htons(sa.sin_port);
 
-#ifdef DEBUG
-            printf("ps2ftpd: new client session (%d.%d.%d.%d:%d)\n",
+            printf("ps2ftpd: new client session (%u.%u.%u.%u:%u)\n",
                    (addr >> 24) & 0xff, (addr >> 16) & 0xff, (addr >> 8) & 0xff, addr & 0xff,
                    port);
 #endif
-            pClient = FtpServer_OnClientConnect(pServer, s);
+            FtpServer_OnClientConnect(pServer, s);
         }
     }
 
